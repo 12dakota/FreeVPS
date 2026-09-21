@@ -1,4 +1,4 @@
-name: Cloudflare Infrastructure Service
+name: Production Cloudflare Network Infrastructure
 
 on:
   push:
@@ -13,19 +13,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Robust binary download to guarantee zero apt/dpkg installation errors
+      # 1. Faster, cleaner installation without package manager friction
       - name: Download and Install cloudflared
         run: |
           curl -L --output cloudflared https://github.com
           chmod +x cloudflared
           sudo mv cloudflared /usr/local/bin/cloudflared
 
-      # Installs the tunnel as an automated system service
+      # 2. Secure Token Injection: Prevents token hijacking if the repo is shared
       - name: Install Cloudflare Tunnel Service
         run: |
-          sudo cloudflared service install eyJhIjoiZTI5NTBiNzdiYzI4OGU5MzY2YmViYmNjY2YxYzI1YTgiLCJ0IjoiY2ZmNGRjMWItYzIxOC00Mzg1LWFlNmEtMjI1NWNkMjk5Yzg4IiwicyI6Ik1tWXpORE01TldJdFpESmhPQzAwT0dWbExUazVNVEl0WTJFeVpEVXhOVFE1T0RBMiJ9
+          sudo cloudflared service install ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
 
-      # Starts the background system daemon and ensures it remains active
+      # 3. Native systemd service alignment for Ubuntu 24.04
       - name: Start and Verify Service Status
         run: |
           sudo systemctl daemon-reload
@@ -33,9 +33,17 @@ jobs:
           sleep 3
           sudo systemctl status cloudflared
 
-      # Keeps the GitHub Action job running so the tunnel connection stays active
-      - name: Maintain Active Network Connection
+      # 4. EXPOSING LOCAL INFRASTRUCTURE (Optional Example)
+      # If you want to test routing infrastructure, you can spin up local test endpoints 
+      # here (like web servers, mock APIs, or Docker networks) for the tunnel to hook into.
+      - name: Spin up a Mock Network Endpoint (Optional)
         run: |
-          echo "Tunnel background service running. Monitoring network activity..."
-          # Continuously stream the tunnel system logs to your GitHub console
+          python3 -m http.server 8080 &
+          echo "Local network endpoint listening on port 8080."
+
+      # 5. Live logs stream and auto-timeout fail-safes
+      - name: Maintain Active Network Connection & Stream Logs
+        run: |
+          echo "Tunnel network service is active. Streaming logs..."
+          # Streams live logs into your GitHub terminal so you can watch connections happen in real-time
           sudo journalctl -u cloudflared -f

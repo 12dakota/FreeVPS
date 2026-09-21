@@ -1,4 +1,4 @@
-name: Cloudflare Networking Infrastructure Tunnel
+name: Cloudflare Infrastructure Service
 
 on:
   push:
@@ -6,24 +6,36 @@ on:
   workflow_dispatch:
 
 jobs:
-  establish-network-tunnel:
+  run-network-service:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Zero-dependency installer: avoids apt repository sync issues completely
+      # Robust binary download to guarantee zero apt/dpkg installation errors
       - name: Download and Install cloudflared
         run: |
           curl -L --output cloudflared https://github.com
           chmod +x cloudflared
           sudo mv cloudflared /usr/local/bin/cloudflared
 
-      - name: Verify cloudflared Installation
-        run: cloudflared --version
-
-      # This runs the tunnel network connection directly from your secret token
-      - name: Connect Local Infrastructure to Cloudflare
+      # Installs the tunnel as an automated system service
+      - name: Install Cloudflare Tunnel Service
         run: |
-          cloudflared tunnel --no-autoupdate run --token ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          sudo cloudflared service install eyJhIjoiZTI5NTBiNzdiYzI4OGU5MzY2YmViYmNjY2YxYzI1YTgiLCJ0IjoiY2ZmNGRjMWItYzIxOC00Mzg1LWFlNmEtMjI1NWNkMjk5Yzg4IiwicyI6Ik1tWXpORE01TldJdFpESmhPQzAwT0dWbExUazVNVEl0WTJFeVpEVXhOVFE1T0RBMiJ9
+
+      # Starts the background system daemon and ensures it remains active
+      - name: Start and Verify Service Status
+        run: |
+          sudo systemctl daemon-reload
+          sudo systemctl start cloudflared
+          sleep 3
+          sudo systemctl status cloudflared
+
+      # Keeps the GitHub Action job running so the tunnel connection stays active
+      - name: Maintain Active Network Connection
+        run: |
+          echo "Tunnel background service running. Monitoring network activity..."
+          # Continuously stream the tunnel system logs to your GitHub console
+          sudo journalctl -u cloudflared -f

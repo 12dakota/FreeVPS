@@ -13,30 +13,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install cloudflared
+      # Bypasses APT issues entirely by installing the direct .deb package
+      - name: Download and Install cloudflared
         run: |
-          sudo mkdir -p --mode=0755 /usr/share/keyrings
-          curl -fsSL https://cloudflare.com | sudo tee /usr/share/keyrings/cloudflare-public-v2.gpg >/dev/null
-          echo 'deb [signed-by=/usr/share/keyrings/cloudflare-public-v2.gpg] https://cloudflare.com any main' | sudo tee /etc/apt/sources.list.d/cloudflared.list
-          sudo apt-get update
-          sudo apt-get install -y cloudflared
+          curl -L --output cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared
+          rm cloudflared
 
       - name: Configure SSH and Private Key
         run: |
-          # Create the local .ssh directory
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          
-          # Load your private key from GitHub Secrets
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          
-          # Automatically trust the remote host's keys
           echo "StrictHostKeyChecking no" >> ~/.ssh/config
 
       - name: Connect and Run Remote Command
         run: |
-          # SSH into your server through cloudflared and execute a command
           ssh -i ~/.ssh/id_rsa -o "ProxyCommand=cloudflared access ssh --hostname %h" \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "echo 'Successfully connected to remote server!' && uname -a"
